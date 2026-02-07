@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thirsty Robots</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: sans-serif;
+            background: white;
+            overflow: hidden;
+            position: relative;
+            height: 100vh;
+        }
+
+        /* Water canvas for physics */
+        #waterCanvas {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        /* Container for all cards */
+        #cardContainer {
+            position: fixed;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Individual card */
+        .card {
+            position: absolute;
+            max-width: 600px;
+            width: 90%;
+            padding: 50px;
+            text-align: center;
+            transition: all 0.6s ease;
+            opacity: 0;
+            transform: translateY(100vh);
+        }
+
+        .card.active {
+            opacity: 1;
+            transform: translateY(0);
+            z-index: 10;
+        }
+
+        .card.prev {
+            opacity: 0;
+            transform: translateY(-100vh);
+        }
+
+        .card h1 {
+            font-size: 48px;
+            margin-bottom: 30px;
+            color: #111;
+        }
+
+        .card h2 {
+            font-size: 36px;
+            margin-bottom: 20px;
+            color: #111;
+        }
+
+        .card p {
+            font-size: 20px;
+            line-height: 1.6;
+            color: #666;
+            margin-bottom: 15px;
+        }
+
+        .stat {
+            font-size: 56px;
+            color: #2196F3;
+            font-weight: bold;
+            margin: 30px 0;
+            display: block;
+        }
+
+        /* Arrow buttons container */
+        .arrows {
+            display: flex;
+            gap: 40px;
+            align-items: center;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .arrow-btn {
+            font-size: 72px;
+            color: #ccc;
+            cursor: pointer;
+            user-select: none;
+            transition: color 0.3s;
+            line-height: 1;
+        }
+
+        .arrow-btn:hover {
+            color: #999;
+        }
+
+        .arrow-btn:active {
+            color: #666;
+        }
+
+        .arrow-btn.disabled {
+            color: #eee;
+            cursor: not-allowed;
+        }
+
+        /* Fixed stats display */
+        #stats {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #ddd;
+            z-index: 1001;
+            font-size: 14px;
+            line-height: 1.6;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Water canvas -->
+    <canvas id="waterCanvas"></canvas>
+
+    <!-- Stats display -->
+    <div id="stats">
+        <div><strong>Total Water Used:</strong> <span id="totalLiters">500</span> L</div>
+        <div><strong>Card:</strong> <span id="cardNumber">1</span> of 9</div>
+        <div><strong>Progress:</strong> <span id="progress">0.000002</span>%</div>
+    </div>
+
+    <!-- Card container -->
+    <div id="cardContainer">
+        <!-- Home card -->
+        <div class="card active" data-index="0" data-liters="500">
+            <h1>Thirsty Robots</h1>
+            <p>Navigate to explore how much water AI uses</p>
+            <div class="arrows">
+                <span class="arrow-btn disabled" onclick="navigate(-1)">↑</span>
+                <span class="arrow-btn" onclick="navigate(1)">↓</span>
+            </div>
+        </div>
+
+        <!-- Data cards -->
+        <div class="card" data-index="1" data-liters="130">
+            <h2>A Single ChatGPT Conversation</h2>
+            <span class="stat">~500ml</span>
+            <p>One conversation with ChatGPT consumes about 500ml of water for cooling.</p>
+            <div class="arrows">
+                <span class="arrow-btn" onclick="navigate(-1)">↑</span>
+                <span class="arrow-btn" onclick="navigate(1)">↓</span>
+            </div>
+        </div>
+
+        <div class="card" data-index="2" data-liters="700000000">
+            <h2>Training GPT-3</h2>
+            <span class="stat">700,000 liters</span>
+            <p>Training GPT-3 consumed approximately 700,000 liters (185,000 gallons) of water.</p>
+            <div class="arrows">
+                <span class="arrow-btn" onclick="navigate(-1)">↑</span>
+                <span class="arrow-btn" onclick="navigate(1)">↓</span>
+            </div>
+        </div>
+
+        <div class="card" data-index="3" data-liters="6435000000">
+            <h2>Microsoft (2022)</h2>
+            <span class="stat">1.7 billion gallons</span>
+            <p>Microsoft consumed 1.7 billion gallons of water in 2022, largely due to AI operations.</p>
+            <div class="arrows">
+                <span class="arrow-btn" onclick="navigate(-1)">↑</span>
+                <span class="arrow-btn" onclick="navigate(1)">↓</span>
+            </div>
+        </div>
+
+        <div class="card" data-index="4" data-liters="21200000000">
+            <h2>Google (2022)</h2>
+            <span class="stat">5.6 billion gallons</span>
+            <p>Google's data centers used 5.6 billion gallons of water in 2022.</p>
+            <div class="arrows">
+                <span class="arrow-btn" onclick="navigate(-1)">↑</span>
+                <span class="arrow-btn" onclick="navigate(1)">↓</span>
+            </div>
+        </div>
+
+        <div class="card" data-index="5" data-liters="15900000000">
+            <h2>Global AI (2023)</h2>
+            <span class="stat">4.2 billion gallons</span>
+            <p>AI consumed an estimated 4.2 billion gallons globally in 2023.</p>
+            <div class="arrows">
+                <span class="arrow-btn" onclick="navigate(-1)">↑</span>
+                <span class="arrow-btn" onclick="navigate(1)">↓</span>
+            </div>
+        </div>
+
+        <div class="card" data-index="6" data-liters="24980000000">
+            <h2>2027 Projection</h2>
+            <span class="stat">6.6 billion gallons/year</span>
+            <p>By 2027, AI is projected to consume 6.6 billion gallons annually.</p>
+            <div class="arrows">
+                <span class="arrow-btn" onclick="navigate(-1)">↑</span>
+                <span class="arrow-btn" onclick="navigate(1)">↓</span>
+            </div>
+        </div>
+
+        <div class="card" data-index="7" data-liters="0">
+            <h2>Try It Yourself</h2>
+            <p>Each prompt you make uses about 500ml of water</p>
+
+            <div style="display: flex; gap: 30px; align-items: flex-start; justify-content: center; margin-top: 30px;">
+                <div style="flex: 1; max-width: 300px;">
+                    <input type="text" id="finalPromptInput" placeholder="Enter your prompt..."
+                        style="width: 100%; padding: 12px; font-size: 14px; border: 2px solid #ddd; border-radius: 8px; margin-bottom: 10px;">
+                    <button id="finalPromptButton" onclick="submitPrompt()"
+                        style="width: 100%; padding: 12px; font-size: 14px; background: #2196F3; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                        Submit Prompt
+                    </button>
+                    <div id="promptCounter" style="margin-top: 15px; font-size: 14px; color: #666;">
+                        Prompts: <strong>0</strong><br>
+                        Water used: <strong>0ml</strong>
+                    </div>
+                </div>
+
+                <div style="position: relative;">
+                    <canvas id="jugCanvas" width="200" height="300"></canvas>
+                </div>
+            </div>
+
+            <div class="arrows" style="margin-top: 30px;">
+                <span class="arrow-btn" onclick="navigate(-1)">↑</span>
+                <span class="arrow-btn" onclick="navigate(1)">↓</span>
+            </div>
+        </div>
+
+        <div class="card" data-index="8" data-liters="0" style="max-width: 900px; padding: 30px;">
+            <h2 style="margin-bottom: 25px; font-size: 32px;">Sources & Take Action</h2>
+
+            <div style="display: flex; gap: 20px; justify-content: space-between; align-items: flex-start;">
+                <!-- Sources Column -->
+                <div
+                    style="flex: 1; background: #f8f9fa; border: 2px solid #e0e0e0; border-radius: 10px; padding: 20px;">
+                    <h3 style="font-size: 18px; color: #2196F3; margin-bottom: 15px; text-align: center;">📚 Sources
+                    </h3>
+
+                    <div style="text-align: left; font-size: 11px; line-height: 1.5; color: #555;">
+                        <p style="margin-bottom: 12px;">
+                            <strong>Li, P., et al. (2023).</strong> "Making AI Less 'Thirsty'."
+                            <em>arXiv:2304.03271</em>
+                        </p>
+
+                        <p style="margin-bottom: 12px;">
+                            <strong>Mytton, D. (2023).</strong> "Data centre water consumption." <em>npj Clean Water,
+                                4(1), 11</em>
+                        </p>
+
+                        <p style="margin-bottom: 12px;">
+                            <strong>Microsoft (2023).</strong> Environmental Sustainability Report
+                        </p>
+
+                        <p style="margin-bottom: 12px;">
+                            <strong>Google (2023).</strong> Environmental Report
+                        </p>
+
+                        <p style="margin-bottom: 12px;">
+                            <strong>Crawford, K. (2021).</strong> <em>Atlas of AI.</em> Yale University Press
+                        </p>
+
+                        <p style="margin-bottom: 0;">
+                            <strong>Patterson, D., et al. (2021).</strong> "Carbon Emissions and Large Neural Network
+                            Training." <em>arXiv:2104.10350</em>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Take Action Column -->
+                <div
+                    style="flex: 1; background: #f0f7ff; border: 2px solid #2196F3; border-radius: 10px; padding: 20px;">
+                    <h3 style="font-size: 18px; color: #2196F3; margin-bottom: 15px; text-align: center;">💧 Take Action
+                    </h3>
+
+                    <div style="text-align: left; font-size: 12px; line-height: 1.5; color: #555;">
+                        <div style="margin-bottom: 15px;">
+                            <p style="font-weight: bold; font-size: 13px; margin-bottom: 8px; color: #333;">
+                                Organizations</p>
+
+                            <p style="margin-bottom: 10px;">
+                                <strong>Clean Water Action</strong><br>
+                                <a href="https://www.cleanwateraction.org" target="_blank"
+                                    style="color: #2196F3; text-decoration: none; font-weight: 600;">cleanwateraction.org
+                                    →</a>
+                            </p>
+
+                            <p style="margin-bottom: 10px;">
+                                <strong>Water.org</strong><br>
+                                <a href="https://water.org" target="_blank"
+                                    style="color: #2196F3; text-decoration: none; font-weight: 600;">water.org →</a>
+                            </p>
+
+                            <p style="margin-bottom: 10px;">
+                                <strong>Pacific Institute</strong><br>
+                                <a href="https://pacinst.org" target="_blank"
+                                    style="color: #2196F3; text-decoration: none; font-weight: 600;">pacinst.org →</a>
+                            </p>
+                        </div>
+
+                        <div style="margin-bottom: 12px;">
+                            <p style="font-weight: bold; font-size: 13px; margin-bottom: 8px; color: #333;">Raise
+                                Awareness</p>
+
+                            <p style="margin-bottom: 6px;">• Share with <strong>#AIWaterFootprint</strong></p>
+                            <p style="margin-bottom: 6px;">• Demand company transparency</p>
+                            <p style="margin-bottom: 6px;">• Contact representatives</p>
+                            <p style="margin-bottom: 6px;">• Choose sustainable providers</p>
+                        </div>
+
+                        <div
+                            style="background: white; padding: 12px; border-radius: 6px; border-left: 3px solid #2196F3; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                            <p style="font-size: 11px; line-height: 1.4; color: #333; margin: 0;">
+                                <strong>Every voice matters.</strong> Share and demand transparency.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="arrows" style="margin-top: 25px;">
+                <span class="arrow-btn" onclick="navigate(-1)">↑</span>
+                <span class="arrow-btn disabled">↓</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const LITERS_PER_GALLON = 3.785411784;
+        const MAX_LITERS = 25000000000;
+
+        let currentIndex = 0;
+        let targetLiters = 500;
+
+        const totalLitersSpan = document.getElementById('totalLiters');
+        const cardNumberSpan = document.getElementById('cardNumber');
+        const progressSpan = document.getElementById('progress');
+        const cards = document.querySelectorAll('.card');
+
+        // Water physics setup
+        const canvas = document.getElementById('waterCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        function resizeCanvas() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Wave simulation
+        const wavePoints = 200;
+        const springs = [];
+        const velocities = [];
+
+        for (let i = 0; i < wavePoints; i++) {
+            springs.push(0);
+            velocities.push(0);
+        }
+
+        const tension = 0.012;
+        const dampening = 0.055;
+        const spread = 0.15;
+
+        // Rain droplets
+        const raindrops = [];
+
+        function createRaindrop() {
+            raindrops.push({
+                x: Math.random() * width,
+                y: -10,
+                speed: 3 + Math.random() * 3,
+                radius: 2 + Math.random() * 2
+            });
+        }
+
+        function updateRain() {
+            for (let i = raindrops.length - 1; i >= 0; i--) {
+                const drop = raindrops[i];
+                drop.y += drop.speed;
+
+                const waterY = height - currentWaterHeight;
+                if (drop.y >= waterY) {
+                    const index = Math.floor((drop.x / width) * wavePoints);
+                    splash(index, -0.5);
+                    raindrops.splice(i, 1);
+                } else if (drop.y > height) {
+                    raindrops.splice(i, 1);
+                }
+            }
+        }
+
+        function drawRain() {
+            ctx.fillStyle = 'rgba(0, 55, 160, 0.6)';
+            for (const drop of raindrops) {
+                ctx.beginPath();
+                ctx.arc(drop.x, drop.y, drop.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function updateWaves() {
+            for (let i = 0; i < wavePoints; i++) {
+                const x = -tension * springs[i] - dampening * velocities[i];
+                velocities[i] += x;
+                springs[i] += velocities[i];
+            }
+
+            const leftDeltas = new Array(wavePoints).fill(0);
+            const rightDeltas = new Array(wavePoints).fill(0);
+
+            for (let i = 0; i < wavePoints; i++) {
+                if (i > 0) {
+                    leftDeltas[i] = spread * (springs[i] - springs[i - 1]);
+                    velocities[i - 1] += leftDeltas[i];
+                }
+                if (i < wavePoints - 1) {
+                    rightDeltas[i] = spread * (springs[i] - springs[i + 1]);
+                    velocities[i + 1] += rightDeltas[i];
+                }
+            }
+        }
+
+        function splash(index, speed) {
+            if (index >= 0 && index < wavePoints) {
+                velocities[index] = speed;
+            }
+        }
+
+        function createMultipleSplashes(cardIndex) {
+            let numSplashes, splashSpeed;
+
+            switch (cardIndex) {
+                case 2:
+                    numSplashes = 2;
+                    splashSpeed = -1.5;
+                    break;
+                case 3:
+                    numSplashes = 4;
+                    splashSpeed = -2.5;
+                    break;
+                case 4:
+                    numSplashes = 6;
+                    splashSpeed = -3.5;
+                    break;
+                case 5:
+                    numSplashes = 6;
+                    splashSpeed = -3.5;
+                    break;
+                case 6:
+                    numSplashes = 8;
+                    splashSpeed = -4.5;
+                    break;
+                default:
+                    numSplashes = 1;
+                    splashSpeed = -1;
+            }
+
+            for (let i = 0; i < numSplashes; i++) {
+                const splashIndex = Math.floor(Math.random() * wavePoints);
+                splash(splashIndex, splashSpeed);
+            }
+        }
+
+        let currentWaterHeight = 0;
+
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+
+            updateWaves();
+            updateRain();
+
+            const targetPercent = (targetLiters / MAX_LITERS);
+            const targetHeight = height * targetPercent;
+            currentWaterHeight += (targetHeight - currentWaterHeight) * 0.05;
+
+            const waterY = height - currentWaterHeight;
+
+            ctx.fillStyle = 'rgba(0, 55, 160, 0.3)';
+            ctx.beginPath();
+            ctx.moveTo(0, height);
+
+            for (let i = 0; i < wavePoints; i++) {
+                const x = (i / wavePoints) * width;
+                const y = waterY + springs[i];
+                ctx.lineTo(x, y);
+            }
+
+            ctx.lineTo(width, height);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.strokeStyle = 'rgba(0, 55, 160, 0.6)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let i = 0; i < wavePoints; i++) {
+                const x = (i / wavePoints) * width;
+                const y = waterY + springs[i];
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            drawRain();
+
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+        function updateUI() {
+            const percent = (targetLiters / MAX_LITERS) * 100;
+
+            totalLitersSpan.textContent = Math.round(targetLiters).toLocaleString();
+            cardNumberSpan.textContent = currentIndex + 1;
+            progressSpan.textContent = percent.toFixed(6);
+        }
+
+        let rainInterval = null;
+
+        function navigate(direction) {
+            const newIndex = currentIndex + direction;
+
+            if (newIndex < 0 || newIndex >= cards.length) return;
+
+            cards[currentIndex].classList.remove('active');
+            if (direction > 0) {
+                cards[currentIndex].classList.add('prev');
+            } else {
+                cards[currentIndex].classList.remove('prev');
+            }
+
+            cards[newIndex].classList.add('active');
+            if (direction < 0) {
+                cards[newIndex].classList.remove('prev');
+            }
+
+            currentIndex = newIndex;
+
+            const litersData = cards[currentIndex].dataset.liters;
+            if (litersData) {
+                const newLiters = parseFloat(litersData);
+                const previousLiters = targetLiters;
+                targetLiters = newLiters;
+
+                if (currentIndex === 1 && direction > 0) {
+                    if (rainInterval) clearInterval(rainInterval);
+                    let rainCount = 0;
+                    const maxRain = 50;
+                    rainInterval = setInterval(() => {
+                        createRaindrop();
+                        createRaindrop();
+                        rainCount++;
+                        if (rainCount >= maxRain) {
+                            clearInterval(rainInterval);
+                        }
+                    }, 30);
+                } else if (direction > 0) {
+                    createMultipleSplashes(currentIndex);
+                } else {
+                    const splashIndex = Math.floor(Math.random() * wavePoints);
+                    splash(splashIndex, 10);
+                }
+
+                updateUI();
+            }
+
+            updateArrowStates();
+        }
+
+        function updateArrowStates() {
+            cards.forEach((card, idx) => {
+                const arrows = card.querySelectorAll('.arrow-btn');
+                const upArrow = arrows[0];
+                const downArrow = arrows[1];
+
+                if (idx === 0) {
+                    upArrow.classList.add('disabled');
+                } else {
+                    upArrow.classList.remove('disabled');
+                }
+
+                if (idx === cards.length - 1) {
+                    downArrow.classList.add('disabled');
+                } else {
+                    downArrow.classList.remove('disabled');
+                }
+            });
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowUp') navigate(-1);
+            if (e.key === 'ArrowDown') navigate(1);
+        });
+
+        updateArrowStates();
+        updateUI();
+
+        // Gallon jug interaction
+        const jugCanvas = document.getElementById('jugCanvas');
+        const jugCtx = jugCanvas ? jugCanvas.getContext('2d') : null;
+        const GALLON_ML = 3785;
+        let jugWaterMl = 0;
+        let jugPromptCount = 0;
+
+        const jugWavePoints = 50;
+        const jugSprings = new Array(jugWavePoints).fill(0);
+        const jugVelocities = new Array(jugWavePoints).fill(0);
+        const jugTension = 0.015;
+        const jugDampening = 0.045;
+        const jugSpread = 0.18;
+
+        function updateJugWaves() {
+            for (let i = 0; i < jugWavePoints; i++) {
+                const x = -jugTension * jugSprings[i] - jugDampening * jugVelocities[i];
+                jugVelocities[i] += x;
+                jugSprings[i] += jugVelocities[i];
+            }
+
+            for (let i = 0; i < jugWavePoints; i++) {
+                if (i > 0) {
+                    const leftDelta = jugSpread * (jugSprings[i] - jugSprings[i - 1]);
+                    jugVelocities[i - 1] += leftDelta;
+                }
+                if (i < jugWavePoints - 1) {
+                    const rightDelta = jugSpread * (jugSprings[i] - jugSprings[i + 1]);
+                    jugVelocities[i + 1] += rightDelta;
+                }
+            }
+        }
+
+        function jugSplash(intensity) {
+            for (let i = 0; i < 3; i++) {
+                const index = Math.floor(Math.random() * jugWavePoints);
+                jugVelocities[index] += -intensity;
+            }
+        }
+
+        function drawJug() {
+            if (!jugCtx) return;
+
+            jugCtx.clearRect(0, 0, 200, 300);
+
+            updateJugWaves();
+
+            const waterPercent = Math.min(jugWaterMl / GALLON_ML, 1);
+            const maxWaterHeight = 185;
+            const waterHeight = waterPercent * maxWaterHeight;
+            const baseWaterY = 268 - waterHeight;
+
+            if (waterHeight > 0) {
+                jugCtx.save();
+
+                jugCtx.beginPath();
+                jugCtx.moveTo(40, 80);
+                jugCtx.lineTo(40, 250);
+                jugCtx.quadraticCurveTo(40, 268, 60, 268);
+                jugCtx.lineTo(140, 268);
+                jugCtx.quadraticCurveTo(160, 268, 160, 250);
+                jugCtx.lineTo(160, 80);
+                jugCtx.closePath();
+                jugCtx.clip();
+
+                jugCtx.fillStyle = 'rgba(100, 150, 255, 0.35)';
+                jugCtx.beginPath();
+                jugCtx.moveTo(40, 270);
+
+                for (let i = 0; i < jugWavePoints; i++) {
+                    const x = 40 + (120 * i / (jugWavePoints - 1));
+                    const y = baseWaterY + jugSprings[i];
+                    if (i === 0) {
+                        jugCtx.lineTo(x, y);
+                    } else {
+                        jugCtx.lineTo(x, y);
+                    }
+                }
+
+                jugCtx.lineTo(160, 270);
+                jugCtx.lineTo(40, 270);
+                jugCtx.closePath();
+                jugCtx.fill();
+
+                jugCtx.strokeStyle = 'rgba(100, 150, 255, 0.7)';
+                jugCtx.lineWidth = 2;
+                jugCtx.beginPath();
+                for (let i = 0; i < jugWavePoints; i++) {
+                    const x = 40 + (120 * i / (jugWavePoints - 1));
+                    const y = baseWaterY + jugSprings[i];
+                    if (i === 0) jugCtx.moveTo(x, y);
+                    else jugCtx.lineTo(x, y);
+                }
+                jugCtx.stroke();
+
+                jugCtx.restore();
+            }
+
+            jugCtx.strokeStyle = '#333';
+            jugCtx.lineWidth = 3;
+            jugCtx.beginPath();
+            jugCtx.moveTo(50, 50);
+            jugCtx.lineTo(40, 80);
+            jugCtx.lineTo(40, 250);
+            jugCtx.quadraticCurveTo(40, 270, 60, 270);
+            jugCtx.lineTo(140, 270);
+            jugCtx.quadraticCurveTo(160, 270, 160, 250);
+            jugCtx.lineTo(160, 80);
+            jugCtx.lineTo(150, 50);
+            jugCtx.closePath();
+            jugCtx.stroke();
+        }
+
+        function animateJug() {
+            drawJug();
+            requestAnimationFrame(animateJug);
+        }
+
+        if (jugCanvas) {
+            animateJug();
+        }
+
+        function submitPrompt() {
+            const input = document.getElementById('finalPromptInput');
+            if (!input || !input.value.trim()) return;
+
+            jugWaterMl += 500;
+            jugPromptCount++;
+
+            jugSplash(2);
+
+            if (jugWaterMl > GALLON_ML) {
+                const overflow = jugWaterMl - GALLON_ML;
+
+                for (let i = 0; i < 30; i++) {
+                    raindrops.push({
+                        x: Math.random() * width,
+                        y: Math.random() * -100,
+                        speed: 3 + Math.random() * 4,
+                        radius: 2 + Math.random() * 2
+                    });
+                }
+
+                targetLiters += (overflow / 1000) * 1000000;
+
+                updateUI();
+            }
+
+            const counter = document.getElementById('promptCounter');
+            if (counter) {
+                counter.innerHTML = `Prompts: <strong>${jugPromptCount}</strong><br>Water used: <strong>${jugWaterMl.toLocaleString()}ml</strong>`;
+            }
+
+            input.value = '';
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && document.activeElement && document.activeElement.id === 'finalPromptInput') {
+                submitPrompt();
+            }
+        });
+    </script>
+</body>
+
+</html>
